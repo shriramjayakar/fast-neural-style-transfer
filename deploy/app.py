@@ -45,29 +45,29 @@ def index():
 @app.route('/predict', methods=['POST'])
 def predict():
     if 'image' not in request.files:
-        return jsonify({'error': 'No image uploaded'})
-
-    # Read the image file
+        return jsonify({'error': 'No image uploaded'}), 400
+    
+    model_name = request.form.get('model', 'mosaic')
+    if model_name not in MODEL_LIST:
+        return jsonify({'error': f'Model `{model_name}` not available'}), 400
+    
+    inference_instance = load_model(model_name)
+    
     image = request.files['image']
-    # Load the model
-    inference_instance = load_model(args.model)
-
-    filename = image.name
     image = Image.open(image).convert('RGB')
-
-    # Save the output image to a temporary file
+    
     temp_dir = tempfile.gettempdir()
     image_path = os.path.join(temp_dir, f"{str(uuid.uuid4())}.jpg")
-
-    # Perform inference
-    with torch.no_grad():
-        output = inference_instance(image)
-
-    # Convert the output tensor to an image and save
-    save_image(image_path, output[0])
-
-    # Return the path to the output image (temporary file path)
+    
+    try:
+        with torch.no_grad():
+            output = inference_instance(image)
+        save_image(image_path, output[0])
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
     return jsonify({'output_image_path': image_path})
+
 
 
 @app.route('/get_image/<image_name>')
